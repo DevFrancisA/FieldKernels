@@ -1,0 +1,8 @@
+target/
+dist/
+*.pyd
+*.so
+__pycache__/
+.pytest_cache/
+.venv/
+.playwright-mcp/

@@ -1,0 +1,24 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/fieldkernels-core",
+    "crates/fieldkernels-cli",
+    "crates/fieldkernels-py",
+]
+# The Python extension needs a Python toolchain (maturin); keep it out of the
+# default `cargo build` / `cargo test` so a plain clone just works.
+default-members = [
+    "crates/fieldkernels-core",
+    "crates/fieldkernels-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+rust-version = "1.80"
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1

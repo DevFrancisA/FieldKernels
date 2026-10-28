@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FieldKernels</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%2711%27 fill=%27none%27 stroke=%27%23ffb454%27 stroke-width=%273%27/%3E%3Ccircle cx=%2716%27 cy=%2716%27 r=%273%27 fill=%27%23ffb454%27/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <svg viewBox="0 0 32 32" width="26" height="26" aria-hidden="true"><circle cx="16" cy="16" r="11" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16" cy="16" r="5" fill="none" stroke="currentColor" stroke-width="2" opacity=".55"/><circle cx="16" cy="16" r="1.6" fill="currentColor"/></svg>
+    <span>FieldKernels</span><small>Biot&ndash;Savart on the GPU</small>
+  </div>
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="field" aria-selected="true">Field</button>
+    <button role="tab" data-tab="bench" aria-selected="false">Benchmark</button>
+    <button role="tab" data-tab="valid" aria-selected="false">Validation</button>
+  </nav>
+  <div class="chips"><span class="chip" id="chip-gpu">GPU: &hellip;</span><span class="chip" id="chip-cpu">CPU: &hellip;</span></div>
+</header>
+
+<main>
+<section id="tab-field" class="tab">
+  <aside class="panel">
+    <h2>Coil</h2>
+    <div class="presets" id="presets"></div>
+    <label>Radius <output id="o-radius"></output><input type="range" id="radius" min="0.02" max="0.5" step="0.005" value="0.1"></label>
+    <label>Current <output id="o-current"></output><input type="range" id="current" min="-50" max="50" step="0.5" value="10"></label>
+    <label>Turns <output id="o-turns"></output><input type="range" id="turns" min="1" max="60" step="1" value="1"></label>
+    <label id="row-length">Length <output id="o-length"></output><input type="range" id="length" min="0.05" max="1" step="0.01" value="0.4"></label>
+    <label>Segments / turn <output id="o-per_turn"></output><input type="range" id="per_turn" min="16" max="1024" step="16" value="128"></label>
+
+    <h2>Slice</h2>
+    <div class="seg" id="plane"><button data-v="xz" aria-pressed="true">XZ</button><button data-v="xy" aria-pressed="false">XY</button><button data-v="yz" aria-pressed="false">YZ</button></div>
+    <label>Offset <output id="o-offset"></output><input type="range" id="offset" min="-0.3" max="0.3" step="0.005" value="0"></label>
+    <label>Half-width <output id="o-extent"></output><input type="range" id="extent" min="0.05" max="1" step="0.01" value="0.25"></label>
+    <label>Resolution
+      <select id="res"><option>64</option><option selected>128</option><option>256</option><option>512</option></select></label>
+
+    <h2>Backend</h2>
+    <select id="backend">
+      <option value="cpu64">CPU &middot; f64 &middot; Rayon</option>
+      <option value="cpu32">CPU &middot; f32 &middot; Rayon</option>
+      <option value="gpu-tiled">GPU &middot; f32 &middot; tiled</option>
+      <option value="gpu-naive">GPU &middot; f32 &middot; naive</option>
+    </select>
+
+    <h2>Display</h2>
+    <div class="checks">
+      <label class="chk"><input type="checkbox" id="log" checked> Log colour scale</label>
+      <label class="chk"><input type="checkbox" id="lines" checked> Field lines</label>
+      <label class="chk"><input type="checkbox" id="coil" checked> Coil overlay</label>
+    </div>
+  </aside>
+
+  <div class="stage">
+    <div class="canvas-wrap">
+      <canvas id="view" aria-label="Magnetic field magnitude on the slice plane"></canvas>
+      <div class="probe" id="probe">Hover the field</div>
+      <div class="legend"><span id="lg-min"></span><canvas id="bar" width="180" height="10"></canvas><span id="lg-max"></span></div>
+    </div>
+    <div class="status" id="status" role="status">Starting&hellip;</div>
+  </div>
+</section>
+
+<section id="tab-bench" class="tab" hidden>
+  <div class="page">
+    <div class="page-head">
+      <div><h1>CPU vs GPU</h1>
+      <p>Random filament clouds, measured on this machine. &ldquo;GPU total&rdquo; includes upload and readback; &ldquo;kernel&rdquo; is compute only.</p></div>
+      <div class="inline-form">
+        <label>Points <input type="number" id="b-points" value="20000" min="100" step="1000"></label>
+        <label>Filaments <input type="text" id="b-sizes" value="10, 100, 1000, 10000, 100000"></label>
+        <button class="primary" id="b-run">Run benchmark</button>
+      </div>
+    </div>
+    <div class="card"><svg id="b-chart" viewBox="0 0 760 360" role="img" aria-label="Runtime versus number of filaments"></svg><div id="b-legend" class="legend-row"></div></div>
+    <div class="kpis" id="b-kpis"></div>
+    <div class="card"><div class="table-wrap"><table id="b-table"></table></div></div>
+    <div class="card"><h3>Workgroup tuning</h3><p class="muted" id="b-tune-note"></p><div id="b-tune"></div></div>
+  </div>
+</section>
+
+<section id="tab-valid" class="tab" hidden>
+  <div class="page">
+    <div class="page-head">
+      <div><h1>Correctness</h1>
+      <p>Each kernel is checked against an independent reference: an exact polygon, elliptic integrals, an infinite wire, &nabla;&middot;B&nbsp;=&nbsp;0, and the f64 CPU result.</p></div>
+      <button class="primary" id="v-run">Run validation</button>
+    </div>
+    <div class="card"><div class="table-wrap"><table id="v-table"><tbody><tr><td class="muted">Press &ldquo;Run validation&rdquo;.</td></tr></tbody></table></div></div>
+  </div>
+</section>
+</main>
+<script src="/app.js"></script>
+</body>
+</html>

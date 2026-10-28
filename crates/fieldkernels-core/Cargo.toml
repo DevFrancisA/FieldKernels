@@ -1,0 +1,17 @@
+[package]
+name = "fieldkernels-core"
+description = "Biot-Savart magnetic fields of current filaments: Rayon CPU kernels and wgpu GPU compute kernels"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[features]
+default = ["gpu"]
+gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
+
+[dependencies]
+rayon = "1.10"
+wgpu = { version = "24", optional = true }
+pollster = { version = "0.4", optional = true }
+bytemuck = { version = "1", features = ["derive"], optional = true }
